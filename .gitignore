@@ -1,0 +1,22 @@
+# OS / editor
+.DS_Store
+
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# SKiDL runtime droppings (ERC reports, logs, generated *_sklib.py stubs)
+*.erc
+*.log
+*_sklib.py
+
+# generated output
+out/

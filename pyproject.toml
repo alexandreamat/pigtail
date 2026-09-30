@@ -1,0 +1,94 @@
+[project]
+name = "pigtail"
+version = "0.1.0"
+description = "House wiring as code: model a home's electrical system in YAML, draw it, and check it against the NEC (National Electrical Code)."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Alexandre Amat" }
+]
+requires-python = ">=3.13"
+keywords = [
+    "electrical",
+    "wiring",
+    "residential",
+    "house wiring",
+    "home electrical",
+    "NEC",
+    "National Electrical Code",
+    "NFPA 70",
+    "electrical code",
+    "code compliance",
+    "code check",
+    "building code",
+    "electrician",
+    "circuit",
+    "branch circuit",
+    "wiring diagram",
+    "box fill",
+    "conduit fill",
+    "ampacity",
+    "voltage drop",
+    "load calculation",
+    "EV charging",
+    "renovation",
+    "home improvement",
+    "DIY",
+    "SKiDL",
+    "netlist",
+    "graphviz",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Other Audience",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Topic :: Home Automation",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.13.5",
+    "pyyaml>=6.0.3",
+    "skidl>=2.3.0",
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+pigtail = "pigtail.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.11.2,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pigtail"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "typings"
+files = ["src", "tests"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.6",
+    "types-pyyaml>=6.0.12.20260906",
+]

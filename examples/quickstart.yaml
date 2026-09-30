@@ -1,0 +1,91 @@
+# Two branch circuits from one panel:
+#   C1  15 A lighting: EMT to a switch box, a switch loop on to a ceiling light
+#   C2  20 A receptacles: NM-B cable daisy-chained through two receptacle boxes
+# C2 is wired in 14 AWG cable, which the check flags: 14 AWG is limited to 15 A.
+
+meta:
+  project: Quickstart
+  code_edition: NEC-2023
+
+boxes:                            # volume from Table 314.16(A), or as marked
+  - {id: SW, type: device, material: metal, shape: square, trade_size: "4 x 1-1/2"}
+  - {id: LT, type: outlet, material: metal, shape: round/octagonal, trade_size: "4 x 1-1/2"}
+  - {id: R1, type: device, material: nonmetallic, volume_cu_in: 18.0}
+  - {id: R2, type: device, material: nonmetallic, volume_cu_in: 18.0}
+
+panelboards:
+  - id: MP
+    main_breaker: {ampere_rating: 100}
+    branch_circuits:              # the breakers
+      - id: C1
+        circuit_breaker: {line: L1, ampere_rating: 15, afci: true}
+      - id: C2
+        circuit_breaker: {line: L2, ampere_rating: 20, afci: true}
+
+    splices:                      # the landings: each wire on a breaker or a busbar
+      - join: [E1.hot, C1.LOAD]
+      - join: [E1.neutral, MP.NEUTRAL]
+      - join: [E1.egc, MP.EGC]    # EMT: the tubing is the ground
+      - join: [N1.ungrounded, C2.LOAD]
+      - join: [N1.neutral, MP.NEUTRAL]
+      - join: [N1.egc, MP.EGC]
+
+    cables:                       # the runs leaving the panel, as a tree
+      - id: E1
+        type: EMT
+        trade_size: "1/2"
+        size_awg: 14
+        length_ft: 18
+        to: SW
+        pulled:                   # EMT: each wire, by colour
+          - {name: hot, role: ungrounded, color: black}
+          - {name: neutral, role: neutral, color: white}
+        devices:
+          - {id: S1, type: snap_switch}
+        splices:                  # in box SW
+          - join: [E1.hot, S1.LINE]
+          - join: [S1.LOAD, E2.leg]
+          - join: [E1.neutral, E2.neutral]
+          - join: [E1.egc, E2.egc, S1.EGC]
+        cables:
+          - id: E2
+            type: EMT
+            trade_size: "1/2"
+            size_awg: 14
+            length_ft: 8
+            to: LT
+            pulled:
+              - {name: leg, role: ungrounded, color: red}      # the switched hot
+              - {name: neutral, role: neutral, color: white}
+            devices:
+              - {id: L1, type: luminaire, load_va: 60}
+            splices:              # in box LT
+              - join: [E2.leg, L1.LINE]
+              - join: [E2.neutral, L1.NEUTRAL]
+              - join: [E2.egc, L1.EGC]
+
+      - id: N1
+        type: NM-B
+        size_awg: 14              # on a 20 A breaker: flagged
+        conductors: 2
+        length_ft: 30
+        to: R1
+        devices:
+          - {id: RA, type: receptacle, nema: 5-20R}
+        splices:                  # in box R1
+          - join: [N1.ungrounded, RA.LINE, N2.ungrounded]
+          - join: [N1.neutral, RA.NEUTRAL, N2.neutral]
+          - join: [N1.egc, RA.EGC, N2.egc]
+        cables:
+          - id: N2
+            type: NM-B
+            size_awg: 14
+            conductors: 2
+            length_ft: 12
+            to: R2
+            devices:
+              - {id: RB, type: receptacle, nema: 5-20R}
+            splices:              # in box R2
+              - join: [N2.ungrounded, RB.LINE]
+              - join: [N2.neutral, RB.NEUTRAL]
+              - join: [N2.egc, RB.EGC]

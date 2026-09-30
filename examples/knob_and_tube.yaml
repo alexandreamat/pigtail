@@ -1,0 +1,87 @@
+# An as-built knob-and-tube branch circuit, as found in older houses.
+#
+# Concealed knob-and-tube wiring (NEC Art. 394): two loose single conductors,
+# one ungrounded and one grounded, run on porcelain knobs and through porcelain
+# tubes. There is NO equipment grounding conductor -- this is why its
+# receptacles are ungrounded (2-prong, 1-15R, 406.4(D)(2) condition).
+#
+#   MP (L2) --K1 (14 AWG, 2 cond, K&T)--> box KTB1 [1-15R receptacle, no EGC]
+#           --K2 (14 AWG, 2 cond, K&T)--> box KTB2 [luminaire]
+#
+# K&T is permitted only as an extension of an existing installation (394.10);
+# pigtail represents the condition, it does not bless it. No `.egc` conductor
+# exists on a knob_and_tube run, so no splice may reference one.
+
+meta:
+  project: Knob-and-tube circuit
+  code_edition: NEC-2023
+
+boxes:
+  - id: KTB1
+    type: device
+    material: nonmetallic
+    volume_cu_in: 18.0
+  - id: KTB2
+    type: outlet
+    material: nonmetallic
+    volume_cu_in: 15.0
+
+panelboards:
+  - id: MP
+    main_breaker:
+      ampere_rating: 100
+
+    branch_circuits:
+      - id: BR-6
+        circuit_breaker:
+          line: L2
+          poles: 1
+          ampere_rating: 15
+
+    splices:                  # landings: each wire on its breaker terminal or busbar
+      - join: [K1.ungrounded, BR-6.LOAD]
+      - join: [K1.neutral, MP.NEUTRAL]
+
+    cables:
+      - id: K1
+        type: knob_and_tube
+        size_awg: 14
+        conductors: 2          # ungrounded + grounded only; no EGC
+        to: KTB1
+
+        devices:
+          - id: BR1-R1
+            type: receptacle
+            nema: 1-15R            # old 2-prong, ungrounded
+            grounding: false
+            tamper_resistant: false
+
+        splices:                  # two wire nuts in box KTB1 (K1.to)
+          - join:                  # ungrounded: in from K1, tap the receptacle, on to K2
+              - K1.ungrounded
+              - BR1-R1.LINE
+              - K2.ungrounded
+          - join:                  # grounded (neutral): same, one nut
+              - K1.neutral
+              - BR1-R1.NEUTRAL
+              - K2.neutral
+
+        cables:
+          - id: K2
+            type: knob_and_tube
+            size_awg: 14
+            conductors: 2
+            to: KTB2
+
+            devices:
+              - id: BR1-L1
+                type: luminaire
+                load_va: 100
+
+            splices:
+              - join:
+                  - K2.ungrounded
+                  - BR1-L1.LINE
+              - join:
+                  - K2.neutral
+                  - BR1-L1.NEUTRAL

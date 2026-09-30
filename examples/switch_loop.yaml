@@ -1,0 +1,112 @@
+# One 15 A lighting branch circuit:
+#
+#   panelboard MP --C1 (14 AWG, 2 cond)--> box SB1 [snap switch]
+#                 --C2 (14 AWG, 2 cond)--> box FB1 [luminaire]
+#
+# Supply lands at SB1 first; the neutral passes through SB1 to the luminaire
+# without connecting to the switch; the switched ungrounded conductor goes on
+# from the switch to the luminaire.
+#
+# Field names use NEC 2023 wording where it exists:
+#   panelboard, branch circuit, circuit breaker (Art. 100)
+#   ampere rating (240.6) · conductor size in AWG (Table 310.16)
+#   box volume in cubic inches (314.16) · nonmetallic box (314.3)
+#   snap switch (404.14) · luminaire (Art. 410) · load in volt-amperes (Art. 220)
+#   ungrounded / neutral / equipment grounding conductor (Art. 100)
+#   spliced or joined (110.14(B))
+# Units live in the field name (_cu_in, _awg, _va); ampere_rating is amperes.
+
+meta:
+  project: Switch loop
+  code_edition: NEC-2023            # the edition the rules are read against
+
+# Boxes are physical containers only (Art. 314). Top-level, because one box can
+# enclose conductors of more than one branch circuit. The circuit tree below
+# refers to them by id.
+boxes:
+  - id: SB1
+    type: device                    # device box
+    material: nonmetallic           # nonmetallic | metal
+    volume_cu_in: 18.0             # box volume, 314.16
+  - id: FB1
+    type: outlet                    # luminaire outlet box, 314.27(A)
+    material: nonmetallic
+    volume_cu_in: 15.0
+
+panelboards:
+  - id: MP
+    main_breaker:
+      ampere_rating: 200
+
+    branch_circuits:
+      - id: LTG-1
+        circuit_breaker:
+          line: L1                  # ungrounded conductor tapped: L1 or L2
+                                    # (the two legs of the 120/240 V 1-phase 3-wire supply)
+          poles: 1
+          ampere_rating: 15        # standard rating, 240.6
+          afci: true               # arc-fault circuit interrupter, 210.12
+          gfci: false              # ground-fault circuit interrupter, 210.8
+
+    splices:                  # landings: each wire on its breaker terminal or busbar
+      - join: [C1.ungrounded, LTG-1.LOAD]
+      - join: [C1.neutral, MP.NEUTRAL]
+      - join: [C1.egc, MP.EGC]
+
+    # Radial tree rooted at the panelboard. Each cable lands in the box
+    # named by `to:`; that box's devices and splices, and any cables
+    # continuing onward, nest under it. A cable's upstream end is its
+    # parent (the panelboard for a run leaving the cabinet, where the
+    # panelboard's splices land each wire). Conductor names in splices:
+    # ungrounded (hot), neutral, egc (equipment grounding).
+    cables:
+      - id: C1
+        type: NM-B              # Type NM cable, Art. 334
+        size_awg: 14
+        conductors: 2          # insulated circuit conductors; a 14 AWG EGC is included
+        length_ft: 24           # routed run panelboard -> SB1
+        to: SB1
+
+        devices:
+          - id: SW1
+            type: snap_switch
+            function: single_pole   # single_pole | three_way | four_way (404.2)
+
+        splices:
+          - join:
+              - C1.ungrounded
+              - SW1.LINE
+          - join:
+              - SW1.LOAD
+              - C2.ungrounded
+          - join:
+              - C1.neutral
+              - C2.neutral
+          - join:
+              - C1.egc
+              - C2.egc
+              - SW1.EGC
+
+        cables:
+          - id: C2
+            type: NM-B
+            size_awg: 14
+            conductors: 2
+            length_ft: 12
+            to: FB1
+
+            devices:
+              - id: L1
+                type: luminaire
+                load_va: 100    # volt-amperes, Art. 220
+
+            splices:
+              - join:
+                  - C2.ungrounded
+                  - L1.LINE
+              - join:
+                  - C2.neutral
+                  - L1.NEUTRAL
+              - join:
+                  - C2.egc
+                  - L1.EGC

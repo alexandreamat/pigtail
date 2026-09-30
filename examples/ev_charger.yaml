@@ -1,0 +1,67 @@
+# A straight 240 V circuit to a NEMA 6-20R receptacle, e.g. for a Level 2
+# charger: 2-pole 20 A breaker -> NM-B 12/2 -> box -> NEMA 6-20R.
+#
+#   MP (L1,L2) --EV1 (12 AWG, 2 cond)--> box EVB [NEMA 6-20R receptacle]
+#
+# Straight 240 V: both cable conductors are ungrounded (the white is
+# re-identified per NEC 200.7(C)(1)); there is no grounded conductor. Bare
+# EGC lands on the panel EGC bus and the receptacle's grounding terminal.
+
+meta:
+  project: 240 V receptacle circuit
+  code_edition: NEC-2023
+
+boxes:
+  - id: EVB
+    type: device
+    material: metal
+    volume_cu_in: 22.5
+
+panelboards:
+  - id: MP
+    main_breaker:
+      ampere_rating: 100
+
+    branch_circuits:
+      - id: EV
+        circuit_breaker:
+          poles: 2
+          ampere_rating: 20
+          afci: false
+          gfci: false
+
+    splices:                  # landings: each wire on its breaker terminal or busbar
+      - join: [EV1.ungrounded, EV.LOAD1]
+      - join: [EV1.neutral, EV.LOAD2]
+      - join: [EV1.egc, MP.EGC]
+
+    cables:
+      - id: EV1
+        type: NM-B
+        size_awg: 12
+        conductors: 2
+        to: EVB
+
+        reidentify:            # NEC 200.7(C)(1): the white is taped and used as a hot
+          - conductor: neutral
+            plays: ungrounded
+            tape: black
+
+        devices:
+          - id: EVR1
+            type: receptacle
+            poles: 2
+            nema: 6-20R
+            gfci: false
+            weather_resistant: false
+
+        splices:              # made in box EV1.to (EVB)
+          - join:
+              - EV1.ungrounded
+              - EVR1.LINE1
+          - join:
+              - EV1.neutral     # white, re-identified as the second hot
+              - EVR1.LINE2
+          - join:
+              - EV1.egc
+              - EVR1.EGC

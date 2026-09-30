@@ -1,0 +1,97 @@
+# A 20 A receptacle circuit run in EMT.
+#
+# Electrical metallic tubing (NEC Art. 358): the circuit conductors are pulled
+# into a steel raceway. With listed fittings the raceway itself is the
+# equipment grounding conductor (250.118(A)(4)) -- there is no separate wire
+# EGC. pigtail models this as an `egc` conductor flagged `raceway`, bonded to the
+# panel EGC bus like any other, and shown continuous (not dashed) in diagrams.
+#
+#   MP (L1) --E1 (12 AWG, 2 cond, EMT)--> box EMB1 [5-20R receptacle]
+#           --E2 (12 AWG, 2 cond, EMT)--> box EMB2 [5-20R receptacle]
+#
+# Boxes are metal; the receptacle grounding terminals bond to the raceway
+# through the box.
+
+meta:
+  project: EMT receptacle circuit
+  code_edition: NEC-2023
+
+boxes:
+  - id: EMB1
+    type: device
+    material: metal
+    volume_cu_in: 18.0
+  - id: EMB2
+    type: device
+    material: metal
+    volume_cu_in: 18.0
+
+panelboards:
+  - id: MP
+    main_breaker:
+      ampere_rating: 100
+
+    branch_circuits:
+      - id: GAR-12
+        circuit_breaker:
+          line: L1
+          poles: 1
+          ampere_rating: 20
+
+    splices:                  # landings: each wire on its breaker terminal or busbar
+      - join: [E1.ungrounded, GAR-12.LOAD]
+      - join: [E1.neutral, MP.NEUTRAL]
+      - join: [E1.egc, MP.EGC]
+
+    cables:
+      - id: E1
+        type: EMT
+        size_awg: 12
+        conductors: 2          # 2 wires pulled in; the tubing is the EGC
+        trade_size: "1/2"       # the tubing you buy (NEC Art. 358)
+        length_ft: 22           # routed run; the BOM adds 6 in. makeup per end
+        to: EMB1
+
+        devices:
+          - id: GAR-R5
+            type: receptacle
+            nema: 5-20R
+
+        splices:                  # three wire nuts in box EMB1 (E1.to)
+          - join:                  # ungrounded: in from E1, tap the receptacle, on to E2
+              - E1.ungrounded
+              - GAR-R5.LINE
+              - E2.ungrounded
+          - join:
+              - E1.neutral
+              - GAR-R5.NEUTRAL
+              - E2.neutral
+          - join:                  # raceway EGC, bonded through the metal box
+              - E1.egc
+              - GAR-R5.EGC
+              - E2.egc
+
+        cables:
+          - id: E2
+            type: EMT
+            size_awg: 12
+            conductors: 2
+            trade_size: "1/2"
+            length_ft: 14
+            to: EMB2
+
+            devices:
+              - id: GAR-R6
+                type: receptacle
+                nema: 5-20R
+
+            splices:
+              - join:
+                  - E2.ungrounded
+                  - GAR-R6.LINE
+              - join:
+                  - E2.neutral
+                  - GAR-R6.NEUTRAL
+              - join:
+                  - E2.egc
+                  - GAR-R6.EGC
