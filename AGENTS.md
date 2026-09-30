@@ -59,4 +59,10 @@ uv run ruff check --fix && uv run ruff format && uv run mypy && uv run pytest -q
 ```
 
 After a change to the drawing or `examples/quickstart.yaml`, regenerate
-`docs/quickstart.svg` and the README's check output.
+`docs/quickstart.svg` and the README's check output. The README loads the drawing from GitHub
+(`main`), so PyPI shows it too.
+
+## Releasing
+
+Bump `version` in `pyproject.toml`, commit, and tag the bare version (`0.1.1`, no `v`); push the
+branch and the tag, then `uv build` and `uv publish`.

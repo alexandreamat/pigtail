@@ -1,6 +1,6 @@
 [project]
 name = "pigtail"
-version = "0.1.0"
+version = "0.1.1"
 description = "House wiring as code: model a home's electrical system in YAML, draw it, and check it against the NEC (National Electrical Code)."
 readme = "README.md"
 license = "MIT"
@@ -61,6 +61,11 @@ dependencies = [
     "skidl>=2.3.0",
     "typer>=0.27.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/alexandreamat/pigtail"
+Repository = "https://github.com/alexandreamat/pigtail"
+Issues = "https://github.com/alexandreamat/pigtail/issues"
 
 [project.scripts]
 pigtail = "pigtail.cli:app"

@@ -122,7 +122,7 @@ Draw it:
 pigtail draw examples/quickstart.yaml -o quickstart.svg
 ```
 
-![The quickstart wiring, drawn by pigtail: the panel with breakers C1 and C2, the EMT runs E1 and E2 through switch box SW to light box LT, and the NM-B runs N1 and N2 through receptacle boxes R1 and R2](docs/quickstart.svg)
+![The quickstart wiring, drawn by pigtail: the panel with breakers C1 and C2, the EMT runs E1 and E2 through switch box SW to light box LT, and the NM-B runs N1 and N2 through receptacle boxes R1 and R2](https://raw.githubusercontent.com/alexandreamat/pigtail/main/docs/quickstart.svg)
 
 Check it:
 
