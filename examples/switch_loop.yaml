@@ -27,7 +27,8 @@ boxes:
   - id: SB1
     type: device                    # device box
     material: nonmetallic           # nonmetallic | metal
-    volume_cu_in: 18.0             # box volume, 314.16
+    volume_cu_in: 18.0             # box volume as marked, 314.16(A)
+    depth_in: 2.75                 # internal depth, 314.24
   - id: FB1
     type: outlet                    # luminaire outlet box, 314.27(A)
     material: nonmetallic

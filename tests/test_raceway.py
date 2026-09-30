@@ -41,7 +41,13 @@ def _house(
         {
             "meta": {"project": "x"},
             "boxes": [
-                {"id": b, "type": "junction", "material": "metal", "volume_cu_in": 42.0}
+                {
+                    "id": b,
+                    "type": "junction",
+                    "material": "metal",
+                    "volume_cu_in": 42.0,
+                    "depth_in": 2.125,
+                }
                 for b in boxes
             ],
             "panelboards": [

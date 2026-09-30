@@ -21,6 +21,7 @@ boxes:
     type: device
     material: nonmetallic
     volume_cu_in: 18.0
+    depth_in: 2.75
   - id: KTB2
     type: outlet
     material: nonmetallic

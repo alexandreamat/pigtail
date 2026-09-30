@@ -21,10 +21,12 @@ boxes:
     type: device
     material: metal
     volume_cu_in: 18.0
+    depth_in: 3.5                # a 3 x 2 x 3-1/2 device box
   - id: EMB2
     type: device
     material: metal
     volume_cu_in: 18.0
+    depth_in: 3.5                # a 3 x 2 x 3-1/2 device box
 
 panelboards:
   - id: MP

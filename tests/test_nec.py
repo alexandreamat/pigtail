@@ -31,7 +31,15 @@ def _one_circuit(
 ) -> dict[str, Any]:
     return {
         "meta": {"project": "x"},
-        "boxes": [{"id": "B", "type": "device", "material": "nonmetallic", "volume_cu_in": 30.0}],
+        "boxes": [
+            {
+                "id": "B",
+                "type": "device",
+                "material": "nonmetallic",
+                "volume_cu_in": 30.0,
+                "depth_in": 2.5,
+            }
+        ],
         "panelboards": [
             {
                 "id": "MP",

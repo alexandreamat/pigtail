@@ -16,6 +16,7 @@ boxes:
     type: device
     material: metal
     volume_cu_in: 22.5
+    depth_in: 2.5
 
 panelboards:
   - id: MP

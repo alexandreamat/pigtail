@@ -7,11 +7,11 @@ meta:
   project: Quickstart
   code_edition: NEC-2023
 
-boxes:                            # volume from Table 314.16(A), or as marked
+boxes:                            # volume from Table 314.16(A), or as marked (+ its depth)
   - {id: SW, type: device, material: metal, shape: square, trade_size: "4 x 1-1/2"}
   - {id: LT, type: outlet, material: metal, shape: round/octagonal, trade_size: "4 x 1-1/2"}
-  - {id: R1, type: device, material: nonmetallic, volume_cu_in: 18.0}
-  - {id: R2, type: device, material: nonmetallic, volume_cu_in: 18.0}
+  - {id: R1, type: device, material: nonmetallic, volume_cu_in: 18.0, depth_in: 2.75}
+  - {id: R2, type: device, material: nonmetallic, volume_cu_in: 18.0, depth_in: 2.75}
 
 panelboards:
   - id: MP

@@ -21,13 +21,15 @@ from typing import TYPE_CHECKING
 
 from pigtail import raceway
 from pigtail.fill import required_cu_in
-from pigtail.models.device import Receptacle
+from pigtail.models._dot import wire_nuts
+from pigtail.models.device import Receptacle, SnapSwitch
 from pigtail.nec_tables import (
     CHAPTER_9_TABLE_4,
     SECTION_210_19_A_1_CONTINUOUS,
     SECTION_210_19_A_IN_4,
     SECTION_240_4_D,
     SECTION_310_3_C_STRANDED_FROM_AWG,
+    SECTION_314_24_B,
     SECTION_358_26_MAX_BENDS_DEG,
     TABLE_210_21_B_3,
     TABLE_250_122,
@@ -174,6 +176,70 @@ def _box_fill(house: House) -> Iterator[str]:
                 f"314.16: box {box.id} -- box volume {volume:g} in.³ ({box.volume_basis}), "
                 f"less than box fill {fill:.2f} in.³"
             )
+
+
+def _box_depth(house: House) -> Iterator[str]:
+    """314.24(B) -- a box enclosing a switch or receptacle is at least as deep
+    as the conductors supplying it need: 2-1/16 in for 8-4 AWG (B)(3), 1-3/16 in
+    for 12-10 AWG (B)(4), 15/16 in for 14 AWG and smaller (B)(5); larger than
+    4 AWG, a box identified for the purpose (B)(2). The internal depth includes
+    any extension box, plaster ring, or raised cover. The rearward projection of
+    the device ((B)(1), (B)(4)) is not modelled.
+    """
+    sizes = {w.handle: w.size_awg for c in house.cables() for w in c.wires}
+    for cable in house.cables():
+        if cable.to is None:
+            continue
+        enclosed = [d for d in cable.devices if isinstance(d, SnapSwitch | Receptacle)]
+        terminals = {f"{d.id}.{t}" for d in enclosed for t in d.terminals if t != "EGC"}
+        supplying = [
+            sizes[m]
+            for nut in wire_nuts([sp.join for sp in cable.splices])
+            if terminals & set(nut)
+            for m in nut
+            if m in sizes
+        ]
+        if not supplying:
+            continue
+        box = house.box(cable.to)
+        awg = min(supplying)  # the largest conductor
+        rule = next((k for k, (awgs, _) in SECTION_314_24_B.items() if awg in awgs), None)
+        if rule is None:
+            yield Unchecked(
+                f"314.24(B)(2): box {box.id} -- a device supplied by {awg} AWG needs a box "
+                "identified for the purpose"
+            )
+            continue
+        need = SECTION_314_24_B[rule][1]
+        parts = box.depth_parts
+        known = sum(d for _, d in parts if d is not None)
+        unknown = [kind for kind, d in parts if d is None]
+        if known >= need - 1e-9:
+            continue
+        head = f"314.24{rule}: box {box.id} -- "
+        if unknown:
+            yield Unchecked(
+                head + f"depth of its {' and '.join(unknown)} not recorded; a device supplied by "
+                f"{awg} AWG needs {_fraction(need)} in."
+            )
+        else:
+            yield (
+                head
+                + f"internal depth {_fraction(known)} in., less than the {_fraction(need)} in. "
+                f"a device supplied by {awg} AWG needs"
+            )
+
+
+def _fraction(inches: float) -> str:
+    """Inches to the nearest 1/16, as a trade dimension: 2.0625 -> "2-1/16"."""
+    sixteenths = round(inches * 16)
+    whole, rest = divmod(sixteenths, 16)
+    if not rest:
+        return f"{whole}"
+    num, den = rest, 16
+    while num % 2 == 0:
+        num, den = num // 2, den // 2
+    return f"{whole}-{num}/{den}" if whole else f"{num}/{den}"
 
 
 def _multiwire(house: House) -> Iterator[str]:
@@ -488,6 +554,7 @@ _CHECKS = (
     _reidentification,
     _knob_and_tube,
     _box_fill,
+    _box_depth,
     _multiwire,
     _raceway_fill,
     _raceway_ampacity,

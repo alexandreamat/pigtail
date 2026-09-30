@@ -32,11 +32,11 @@ meta:
   project: Quickstart
   code_edition: NEC-2023
 
-boxes:                            # volume from Table 314.16(A), or as marked
+boxes:                            # volume from Table 314.16(A), or as marked (+ its depth)
   - {id: SW, type: device, material: metal, shape: square, trade_size: "4 x 1-1/2"}
   - {id: LT, type: outlet, material: metal, shape: round/octagonal, trade_size: "4 x 1-1/2"}
-  - {id: R1, type: device, material: nonmetallic, volume_cu_in: 18.0}
-  - {id: R2, type: device, material: nonmetallic, volume_cu_in: 18.0}
+  - {id: R1, type: device, material: nonmetallic, volume_cu_in: 18.0, depth_in: 2.75}
+  - {id: R2, type: device, material: nonmetallic, volume_cu_in: 18.0, depth_in: 2.75}
 
 panelboards:
   - id: MP
@@ -150,8 +150,8 @@ Table 250.122: cable N2 -- EGC N2.egc is 14 AWG; a 20 A circuit needs 12 AWG
   instead of refusing the model. Each finding cites its NEC section.
 - **Honest about missing data.** A rule that needs a value you haven't recorded (a box
   volume, a run length, a load) is reported as *not checked*, never guessed.
-- **Box fill** (314.16) from a box's Table 314.16(A) trade size or its marked volume, plus
-  extension rings, plaster rings, and covers.
+- **Box fill and box depth** (314.16, 314.24) from a box's Table 314.16(A) trade size or its
+  marked volume and depth, plus extension rings, plaster rings, and covers.
 - **Conduit fill and ampacity** (Chapter 9, 310.15, 110.14(C)): fill against Table 1,
   current-carrying conductors and their adjustment, ambient correction, terminal
   temperature limits, 240.4(B) and 240.4(D).
@@ -204,8 +204,9 @@ print(house.bom())
 - **`boxes`** — every box, top-level (one box can hold several circuits): `id`, `type`
   (`device`, `outlet`, `junction`, `pull`), `material` (`metal`, `nonmetallic`), and its
   volume one way: `shape` + `trade_size` from Table 314.16(A) (`square` / `"4 x 2-1/8"`,
-  `round/octagonal`, `device`, ...), or `volume_cu_in` as marked. `additions`: extension
-  rings, plaster rings, domed or raised covers, each by trade size or marked volume.
+  `round/octagonal`, `device`, ...), or `volume_cu_in` as marked, with `depth_in` (the trade
+  size carries its own depth). `additions`: extension rings, plaster rings, domed or raised
+  covers, each by trade size or marked volume, with `depth_in` for how much depth it adds.
 - **`panelboards`** — `id`, `main_breaker`, `service`; `branch_circuits` (the breakers:
   `ampere_rating`, `poles`, `line` L1/L2 for 1-pole, `afci`, `gfci`, `terminal_c`);
   `splices`, the landings: each wire on `<circuit>.LOAD` (2-pole: `LOAD1` / `LOAD2`),
@@ -244,6 +245,7 @@ Leave a value out rather than guess it: pigtail reports what it then can't check
 | Table 250.122 | equipment grounding conductor size |
 | 310.3(C) | 8 AWG and larger stranded in conduit |
 | 314.16 | box volume against box fill |
+| 314.24(B) | box depth against the conductors supplying the device in it |
 | 358.22, Chapter 9 | conduit fill |
 | 358.26 | bends between pull points |
 | 394.12 | knob-and-tube |

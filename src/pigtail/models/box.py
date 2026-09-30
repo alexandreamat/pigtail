@@ -15,12 +15,16 @@ from pigtail.nec_tables import TABLE_314_16_A
 class _Volume(BaseModel):
     """A volume given one of two ways (314.16(A)): the ``shape`` and
     ``trade_size`` of a standard box, looked up in Table 314.16(A), or the
-    ``volume_cu_in`` marked on it. Neither: none recorded.
+    ``volume_cu_in`` marked on it. Neither: none recorded. The depth (314.24)
+    comes with the trade size; otherwise ``depth_in`` gives it.
     """
 
     shape: BoxShape | None = None  # Table 314.16(A), e.g. square
     trade_size: str | None = None  # Table 314.16(A) "Box Trade Size", inches, e.g. "4 x 2-1/8"
     volume_cu_in: float | None = Field(default=None, gt=0)  # as marked
+    depth_in: float | None = Field(
+        default=None, gt=0
+    )  # internal depth, when no trade size gives it
 
     def _name(self) -> str:
         raise NotImplementedError
@@ -34,6 +38,8 @@ class _Volume(BaseModel):
                 f"{self._name()}: give its trade size (Table 314.16(A)) or its marked "
                 "volume_cu_in, not both"
             )
+        if self.shape is not None and self.depth_in is not None:
+            raise ValueError(f"{self._name()}: its trade size gives its depth; drop depth_in")
         if self.shape is not None and self.trade_size not in TABLE_314_16_A[self.shape]:
             sizes = ", ".join(TABLE_314_16_A[self.shape])
             raise ValueError(
@@ -52,11 +58,29 @@ class _Volume(BaseModel):
         return self.volume_cu_in
 
     @property
+    def own_depth_in(self) -> float | None:
+        """The depth: the last dimension of the Table 314.16(A) trade size (a
+        box's depth; an FS / FD box's is its only one), or ``depth_in``.
+        """
+        if self.trade_size is not None:
+            return _inches(self.trade_size.split(" x ")[-1])
+        return self.depth_in
+
+    @property
     def basis(self) -> str:
         """Where the volume comes from."""
         if self.shape is not None:
             return f"Table 314.16(A), {self.trade_size} {self.shape}"
         return "marked" if self.volume_cu_in is not None else "not recorded"
+
+
+def _inches(text: str) -> float:
+    """A trade dimension in inches, e.g. "2-1/8" -> 2.125, "2" -> 2.0."""
+    whole, _, fraction = text.partition("-")
+    if "/" in whole:  # a bare fraction
+        whole, fraction = "0", whole
+    num, _, den = fraction.partition("/")
+    return float(whole) + (float(num) / float(den) if fraction else 0.0)
 
 
 class BoxAddition(_Volume):
@@ -112,6 +136,13 @@ class Box(_Volume):
         """
         own = self.recorded_cu_in
         return None if own is None else own + sum(a.counted_cu_in for a in self.additions)
+
+    @property
+    def depth_parts(self) -> list[tuple[str, float | None]]:
+        """314.24(B): the box's depth, then each ring or cover's -- the internal
+        depth is their sum. None where a depth is not recorded.
+        """
+        return [("box", self.own_depth_in), *((a.kind, a.own_depth_in) for a in self.additions)]
 
     @property
     def volume_basis(self) -> str:

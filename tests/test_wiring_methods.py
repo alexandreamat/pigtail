@@ -37,7 +37,15 @@ def test_knob_and_tube_device_ground_pin_floats(kt_house: House) -> None:
 def test_knob_and_tube_splice_to_missing_egc_is_rejected() -> None:
     data = {
         "meta": {"project": "x"},
-        "boxes": [{"id": "B", "type": "device", "material": "nonmetallic", "volume_cu_in": 18.0}],
+        "boxes": [
+            {
+                "id": "B",
+                "type": "device",
+                "material": "nonmetallic",
+                "volume_cu_in": 18.0,
+                "depth_in": 2.75,
+            }
+        ],
         "panelboards": [
             {
                 "id": "MP",
@@ -93,7 +101,15 @@ def test_reidentified_conductor_plays_its_taped_role() -> None:
 def _ev_data(tape: str) -> dict[str, object]:
     return {
         "meta": {"project": "x"},
-        "boxes": [{"id": "B", "type": "device", "material": "metal", "volume_cu_in": 22.5}],
+        "boxes": [
+            {
+                "id": "B",
+                "type": "device",
+                "material": "metal",
+                "volume_cu_in": 22.5,
+                "depth_in": 2.5,
+            }
+        ],
         "panelboards": [
             {
                 "id": "MP",

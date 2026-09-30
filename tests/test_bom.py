@@ -78,7 +78,15 @@ def test_switch_loop_bom_counts() -> None:
 def test_emt_requires_trade_size_and_nm_forbids_it() -> None:
     ok = {
         "meta": {"project": "x"},
-        "boxes": [{"id": "B", "type": "device", "material": "metal", "volume_cu_in": 30.0}],
+        "boxes": [
+            {
+                "id": "B",
+                "type": "device",
+                "material": "metal",
+                "volume_cu_in": 30.0,
+                "depth_in": 2.125,
+            }
+        ],
         "panelboards": [
             {
                 "id": "MP",
@@ -152,7 +160,7 @@ def test_box_shapes_are_the_tables() -> None:
 
 def test_a_short_box_names_where_its_volume_comes_from() -> None:
     data = yaml.safe_load((EXAMPLES / "emt_conduit.yaml").read_text())
-    del data["boxes"][0]["volume_cu_in"]
+    del data["boxes"][0]["volume_cu_in"], data["boxes"][0]["depth_in"]
     data["boxes"][0] |= {"shape": "device", "trade_size": "3 x 2 x 2"}  # 10.0 in.3; EMB1 needs 13.5
     found = [
         str(w.message)

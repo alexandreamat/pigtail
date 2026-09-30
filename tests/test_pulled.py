@@ -45,7 +45,13 @@ def _house(**overrides: Any) -> dict[str, Any]:
         "meta": {"project": "x"},
         "boxes": [
             {"id": "J", "type": "junction", "material": "metal", "volume_cu_in": 21.5},
-            {"id": "SW", "type": "device", "material": "metal", "volume_cu_in": 21.0},
+            {
+                "id": "SW",
+                "type": "device",
+                "material": "metal",
+                "volume_cu_in": 21.0,
+                "depth_in": 1.5,
+            },
         ],
         "panelboards": [
             {

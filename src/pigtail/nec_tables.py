@@ -175,6 +175,17 @@ TABLE_314_16_A: dict[str, dict[str, dict[str, float]]] = {
 # as this many conductors of the largest size connected to it.
 SECTION_314_16_B_4_PER_YOKE = 2
 
+# 314.24(B)(3)-(5): the minimum internal depth of a box enclosing a device, by
+# the conductors supplying it -- subsection -> (the AWG sizes it covers, the
+# depth in inches). Conductors larger than 4 AWG need a box identified for the
+# purpose, (B)(2). The depth includes any extension box, plaster ring, or raised
+# cover.
+SECTION_314_24_B: dict[str, tuple[tuple[int, ...], float]] = {
+    "(B)(3)": ((8, 6, 4), 2 + 1 / 16),
+    "(B)(4)": ((12, 10), 1 + 3 / 16),
+    "(B)(5)": ((18, 16, 14), 15 / 16),
+}
+
 # Table 314.16(B): free space within a box for each conductor, by AWG, cu in.
 TABLE_314_16_B: dict[int, float] = {
     18: 1.50,
