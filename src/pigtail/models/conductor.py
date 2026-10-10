@@ -30,7 +30,7 @@ class Conductor(BaseModel):
     # cable assembly, the name given in YAML for a conductor pulled into EMT
     name: str
     role: ConductorRole  # the role it is installed to serve (a cable's factory position)
-    size_awg: AwgSize
+    size_awg: AwgSize | None  # None = not recorded
     color: ConductorColor
     insulation: Insulation = "THHN"
     material: ConductorMaterial = "Cu"
@@ -75,7 +75,7 @@ class Conductor(BaseModel):
         label = "EGC · raceway" if self.raceway else (self.reidentified_as or self.name)
         band = f'<td bgcolor="{self.tape}" width="8"> </td>' if self.tape is not None else ""
         size = (
-            f'<td align="right"><font color="{fg}" point-size="7"> {self.size_awg} AWG </font></td>'
+            f'<td align="right"><font color="{fg}" point-size="7"> {self.size_awg or "?"} AWG </font></td>'
             if gauge and not self.raceway
             else ""
         )
@@ -98,6 +98,6 @@ class Conductor(BaseModel):
         if self.tape is not None:
             colour = f"{self.color}/{self.tape}"  # insulation / tape mark
         return (
-            f"  {self.handle:<22} {method:<14} {self.played_role:<10} {self.size_awg:<4} "
+            f"  {self.handle:<22} {method:<14} {self.played_role:<10} {self.size_awg or '?':<4} "
             f"{colour:<11} {path:<26} {landed}"
         )

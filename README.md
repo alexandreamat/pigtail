@@ -149,7 +149,7 @@ Table 250.122: cable N2 -- EGC N2.egc is 14 AWG; a 20 A circuit needs 12 AWG
 - **NEC checks, warn-only.** An as-built house can hold violations; pigtail reports them
   instead of refusing the model. Each finding cites its NEC section.
 - **Honest about missing data.** A rule that needs a value you haven't recorded (a box
-  volume, a run length, a load) is reported as *not checked*, never guessed.
+  volume, a run length, a load, a conductor size) is reported as *not checked*, never guessed.
 - **Box fill and box depth** (314.16, 314.24) from a box's Table 314.16(A) trade size or its
   marked volume and depth, plus extension rings, plaster rings, and covers.
 - **Conduit fill and ampacity** (Chapter 9, 310.15, 110.14(C)): fill against Table 1,
@@ -213,8 +213,8 @@ print(house.bom())
   `<panel>.NEUTRAL`, or `<panel>.EGC`; `cables`, the runs leaving the panel.
 - **`cables`** — one run each, as a tree: the box it lands in (`to`; left out when its far
   end isn't traced yet), then that box's `devices`, `splices`, and onward `cables`.
-  - `type: NM-B | EMT | knob_and_tube`, `size_awg`, `length_ft`, EMT `trade_size`,
-    `ambient_c`, `bends_deg`.
+  - `type: NM-B | EMT | knob_and_tube`, `size_awg` (left out when not known), `length_ft`,
+    EMT `trade_size`, `ambient_c`, `bends_deg`.
   - Cable assemblies give `conductors: 2 | 3` (the "/2", "/3"; the ground wire is added);
     `reidentify` marks a re-taped white (200.7(C)(1)).
   - EMT runs list every wire `pulled`: `name`, `role` (`ungrounded`, `neutral`, `traveler`,

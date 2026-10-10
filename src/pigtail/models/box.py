@@ -150,7 +150,9 @@ class Box(_Volume):
         return "; ".join([self.basis, *(a.summary for a in self.additions)])
 
     # --- diagram --------------------------------------------------------
-    def diagram_cluster(self, inner: list[str], *, same_rank: list[str], fill: float) -> list[str]:
+    def diagram_cluster(
+        self, inner: list[str], *, same_rank: list[str], fill: float | None
+    ) -> list[str]:
         """This box as a rounded cluster wrapping already-rendered node lines
         (its devices and its splice bar), labelled with its box volume
         (314.16(A)) and its box ``fill`` (314.16(B)). ``same_rank`` node ids are
@@ -161,10 +163,10 @@ class Box(_Volume):
             if self.box_volume_cu_in is None
             else f"box volume {self.box_volume_cu_in:g} in.³ ({self.volume_basis})"
         )
+        filled = "box fill not calculated" if fill is None else f"box fill {fill:.2f} in.³"
         out = [
             f'  subgraph "cluster_{self.id}" {{',
-            f'    label="{esc(self.id)}  ·  {self.type} · {self.material} · {volume} · '
-            f'box fill {fill:.2f} in.³";',
+            f'    label="{esc(self.id)}  ·  {self.type} · {self.material} · {volume} · {filled}";',
             '    labelloc=b; style="rounded,filled"; fillcolor="#f6f6f6"; color="#bbbbbb"; fontsize=8;',
             *(f"  {line}" for line in inner),
         ]

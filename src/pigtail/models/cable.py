@@ -60,6 +60,11 @@ class Reidentification(BaseModel):
         return _lawful_mark(v)
 
 
+def _awg(size: int | None) -> str:
+    """A conductor size for a label: "?" where it is not recorded."""
+    return "?" if size is None else str(size)
+
+
 class PulledConductor(BaseModel):
     """One insulated conductor pulled into a raceway (NEC 300.3, Art. 310). In
     EMT each wire is pulled on its own, so a run can carry any mix of colours
@@ -154,7 +159,7 @@ class Cable(BaseModel):
 
     id: str
     type: WiringMethod
-    size_awg: AwgSize
+    size_awg: AwgSize | None = None  # None = not recorded
     conductors: ConductorCount | None = None  # None when ``pulled`` lists them
     pulled: list[PulledConductor] = []  # EMT: each wire pulled in, by name
     to: str | None = None  # the box this run lands in; None = far end not traced yet
@@ -230,17 +235,18 @@ class Cable(BaseModel):
     def spec_label(self) -> str:
         """Short method + size label for diagrams and schedules."""
         if self.type == "knob_and_tube":
-            return f"K&T {self.size_awg}" + ("/3" if self.conductors == 3 else "")
+            return f"K&T {_awg(self.size_awg)}" + ("/3" if self.conductors == 3 else "")
         if self.pulled:
             insulated = [w.size_awg for w in self.wires if w.role != "egc"]
             ground = " w/G" if any(w.role == "egc" and not w.raceway for w in self.wires) else ""
             if len(set(insulated)) == 1:
-                return f"{self.type} {insulated[0]}/{len(insulated)}{ground}"
+                return f"{self.type} {_awg(insulated[0])}/{len(insulated)}{ground}"
             sizes = " + ".join(
-                f"{insulated.count(a)}×{a}" for a in sorted(set(insulated), reverse=True)
+                f"{insulated.count(a)}×{_awg(a)}"
+                for a in sorted(set(insulated), key=lambda a: (a is None, -(a or 0)))
             )
             return f"{self.type} {sizes}{ground}"  # mixed sizes, e.g. EMT 2×14 + 1×12
-        return f"{self.type} {self.size_awg}/{self.conductors}"
+        return f"{self.type} {_awg(self.size_awg)}/{self.conductors}"
 
     @property
     def diagram_label(self) -> str:

@@ -46,7 +46,7 @@ def _ft(feet: float, unmeasured: int) -> str:
 def _conductor(cables: list[Cable]) -> str:
     assembly: dict[str, list[float]] = {}  # label -> [runs, feet, unmeasured]
     tubing: dict[str, list[float]] = {}
-    thhn: dict[int, list[float]] = {}  # awg -> [feet, unmeasured]
+    thhn: dict[int | None, list[float]] = {}  # awg (None: not recorded) -> [feet, unmeasured]
 
     for c in cables:
         buy_len = c.bom_length_ft or 0.0
@@ -76,8 +76,9 @@ def _conductor(cables: list[Cable]) -> str:
         out.append("  conduit (buy tubing + conductor separately)")
         for label, (runs, feet, un) in sorted(tubing.items()):
             out.append(f"    {label:<16} {int(runs):>3} run(s)  {_ft(feet, int(un))}")
-        for awg, (feet, un) in sorted(thhn.items()):
-            out.append(f"      {awg} AWG THHN{'':<6} {'':<9} {_ft(feet, int(un))}")
+        for awg, (feet, un) in sorted(thhn.items(), key=lambda kv: (kv[0] is None, kv[0] or 0)):
+            size = "size ?" if awg is None else f"{awg} AWG"
+            out.append(f"      {size} THHN{'':<6} {'':<9} {_ft(feet, int(un))}")
     return "\n".join(out)
 
 
@@ -96,8 +97,12 @@ def _boxes(house: House) -> str:
     short = []
     ok = 0
     unknown = 0
+    uncalculated = 0
     for b in house.boxes:
         need = required_cu_in(house, b.id)
+        if need is None:
+            uncalculated += 1
+            continue
         if need == 0:
             continue
         volume = b.box_volume_cu_in
@@ -108,6 +113,8 @@ def _boxes(house: House) -> str:
         else:
             ok += 1
     unrecorded = f", {unknown} box volume not recorded" if unknown else ""
+    if uncalculated:
+        unrecorded += f", {uncalculated} box fill not calculated (conductor size not recorded)"
     if short:
         out.append("")
         out.append(

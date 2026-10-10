@@ -55,10 +55,17 @@ def feeder(house: House, conductor: Conductor) -> BranchCircuit | None:
     return fed[0] if fed else None
 
 
+def size(conductor: Conductor) -> int:
+    """The conductor's size, AWG -- for a calculation that needs it."""
+    if conductor.size_awg is None:
+        raise BuildError(f"{conductor.handle}: size not recorded")
+    return conductor.size_awg
+
+
 def conductor_area(conductor: Conductor) -> float:
     """Chapter 9 Table 5: the conductor's cross-section, sq in."""
     try:
-        return CHAPTER_9_TABLE_5[conductor.insulation][conductor.size_awg]["area_sq_in"]
+        return CHAPTER_9_TABLE_5[conductor.insulation][size(conductor)]["area_sq_in"]
     except KeyError:
         raise BuildError(
             f"{conductor.handle}: no Chapter 9 Table 5 area for {conductor.insulation} "
@@ -66,12 +73,20 @@ def conductor_area(conductor: Conductor) -> float:
         ) from None
 
 
-def fill(cable: Cable) -> tuple[float, float]:
+def ungauged(cable: Cable) -> list[Conductor]:
+    """The wires in a run whose size is not recorded (the raceway is not a wire)."""
+    return [w for w in cable.wires if w.size_awg is None and not w.raceway]
+
+
+def fill(cable: Cable) -> tuple[float, float] | None:
     """(fraction of the tube's area the wires take, the fraction Chapter 9
-    Table 1 allows for that many wires).
+    Table 1 allows for that many wires); None when a wire's size is not
+    recorded.
     """
     if cable.trade_size is None:
         raise BuildError(f"cable {cable.id!r} has no trade size -- not a raceway")
+    if ungauged(cable):
+        return None
     wires = [w for w in cable.wires if not w.raceway]
     area = sum(conductor_area(w) for w in wires)
     row = "1" if len(wires) == 1 else "2" if len(wires) == 2 else "over 2"
@@ -156,7 +171,7 @@ def terminal_rating(bc: BranchCircuit) -> int:
 
 def table_310_16(conductor: Conductor, rating: int) -> int:
     try:
-        return TABLE_310_16[conductor.material][rating][conductor.size_awg]
+        return TABLE_310_16[conductor.material][rating][size(conductor)]
     except KeyError:
         raise BuildError(
             f"{conductor.handle}: no Table 310.16 ampacity for {conductor.material} "
@@ -210,7 +225,8 @@ def largest_breaker(conductor: Conductor, bc: BranchCircuit, amps: float) -> flo
     if amps not in TABLE_240_6_A and receptacles <= 1 and not untraced(bc):
         up = next((s for s in TABLE_240_6_A if s >= amps), amps)
         permitted = up if up <= SECTION_240_4_B_MAX_AMPERES else amps
-    cap = SECTION_240_4_D.get(conductor.material, {}).get(conductor.size_awg)
+    awg = conductor.size_awg
+    cap = None if awg is None else SECTION_240_4_D.get(conductor.material, {}).get(awg)
     return permitted if cap is None else min(permitted, cap)
 
 
@@ -238,7 +254,7 @@ def resistance_per_ft(conductor: Conductor) -> float:
     """Chapter 9 Table 8: DC resistance at 75 C, ohm per ft (stranded where the
     stranding is not recorded or the size is tabulated stranded only).
     """
-    row = CHAPTER_9_TABLE_8[conductor.size_awg]
+    row = CHAPTER_9_TABLE_8[size(conductor)]
     return row.get(conductor.stranding or "stranded", row["stranded"]) / 1000
 
 
@@ -253,6 +269,22 @@ def unmeasured(house: House, bc: BranchCircuit) -> list[Cable]:
         if any(x is d for d in loaded for x in run.devices):
             for c in house.path(run):
                 if c.length_ft is None:
+                    out.setdefault(c.id, c)
+    return list(out.values())
+
+
+def ungauged_hots(house: House, bc: BranchCircuit) -> list[Cable]:
+    """The runs between the panelboard and a device with a declared load on the
+    circuit whose hot has no recorded size -- what keeps its voltage drop from
+    being calculated.
+    """
+    loaded = [d for d in bc.devices() if any(d.demand_va())]
+    out: dict[str, Cable] = {}
+    for run in house.cables():
+        if any(x is d for d in loaded for x in run.devices):
+            for c in house.path(run):
+                hot = next((w for w in c.wires if feeder(house, w) is bc), None)
+                if hot is not None and hot.size_awg is None:
                     out.setdefault(c.id, c)
     return list(out.values())
 
@@ -276,7 +308,7 @@ def voltage_drop(house: House, bc: BranchCircuit) -> dict[str, float]:
             drop = 0.0
             for c in house.path(run):
                 hot = next((w for w in c.wires if feeder(house, w) is bc), None)
-                if c.length_ft is None or hot is None:
+                if c.length_ft is None or hot is None or hot.size_awg is None:
                     break
                 drop += 2 * c.length_ft * amps * resistance_per_ft(hot)
             else:

@@ -208,13 +208,13 @@ class House(BaseModel):
         )
         rows: list[str] = []
         for cable in raceway.raceways(self):
-            used, allowed = raceway.fill(cable)
+            filled = raceway.fill(cable)
             count = raceway.current_carrying(self, cable)
             factor = raceway.adjustment(count)
             margins = []
             for w in cable.wires:
                 bc = raceway.feeder(self, w)
-                if bc is not None:
+                if bc is not None and w.size_awg is not None:
                     amps = raceway.ampacity(w, bc, factor=factor, ambient_c=cable.ambient_c)
                     margins.append((amps, bc, w))
             tight = "-"
@@ -226,9 +226,10 @@ class House(BaseModel):
                 )
             wires = sum(1 for w in cable.wires if not w.raceway)
             size = f'{cable.trade_size}"'
+            used, allowed = (f"{f:.0%}" for f in filled) if filled else ("?", "?")
             rows.append(
-                f"  {cable.id:<16} {size:<6} {wires:>5} {used:>5.0%} "
-                f"{allowed:>5.0%} {count:>4} {factor:>6.0%}  {tight}"
+                f"  {cable.id:<16} {size:<6} {wires:>5} {used:>5} "
+                f"{allowed:>5} {count:>4} {factor:>6.0%}  {tight}"
             )
         return "RACEWAYS (EMT)\n" + "\n".join([header, *rows])
 

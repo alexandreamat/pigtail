@@ -2,7 +2,8 @@
 
 ``check(house)`` runs every check and raises a ``NECViolation`` warning for each
 non-compliance, and an ``NECUnchecked`` warning for each rule it cannot evaluate
-because a value it needs is not recorded (a box's volume, a run's length). It
+because a value it needs is not recorded (a box's volume, a run's length, a
+conductor's size). It
 returns nothing and never raises an exception -- an as-built house may hold
 violations; run this, read the warnings, and fix the YAML (or accept them).
 
@@ -20,7 +21,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from pigtail import raceway
-from pigtail.fill import required_cu_in
+from pigtail.fill import required_cu_in, ungauged
 from pigtail.models._dot import wire_nuts
 from pigtail.models.device import Receptacle, SnapSwitch
 from pigtail.nec_tables import (
@@ -75,8 +76,17 @@ def _limit(conductor: Conductor, bc: BranchCircuit, amps: float, binding: str) -
     rating = bc.circuit_breaker.ampere_rating
     if rating <= raceway.largest_breaker(conductor, bc, amps):
         return None
-    cap = SECTION_240_4_D.get(conductor.material, {}).get(conductor.size_awg)
+    awg = conductor.size_awg
+    cap = None if awg is None else SECTION_240_4_D.get(conductor.material, {}).get(awg)
     return "240.4(D)" if cap is not None and cap < rating and cap <= amps else binding
+
+
+def _unsized(article: str, cable: Cable, conductor: Conductor, bc: BranchCircuit) -> Unchecked:
+    """The finding for a conductor energized from ``bc`` whose size is not recorded."""
+    return Unchecked(
+        f"{article}: cable {cable.id} -- {conductor.handle} size not recorded; its rating "
+        f"against circuit {bc.id}'s {bc.circuit_breaker.ampere_rating} A breaker is not checked"
+    )
 
 
 def _small_conductor_ocpd(house: House) -> Iterator[str]:
@@ -91,6 +101,9 @@ def _small_conductor_ocpd(house: House) -> Iterator[str]:
         for w in cable.wires:
             bc = raceway.feeder(house, w)
             if bc is None:
+                continue
+            if w.size_awg is None:
+                yield _unsized("240.4(D)", cable, w, bc)
                 continue
             amps = raceway.cable_ampacity(w, bc, cable.type)
             article = _limit(w, bc, amps, "334.80" if cable.type == "NM-B" else "310.16")
@@ -164,6 +177,12 @@ def _box_fill(house: House) -> Iterator[str]:
     """
     for box in house.boxes:
         fill = required_cu_in(house, box.id)
+        if fill is None:
+            yield Unchecked(
+                f"314.16: box {box.id} -- conductor size not recorded in "
+                f"{', '.join(ungauged(house, box.id))}; box fill not calculated"
+            )
+            continue
         volume = box.box_volume_cu_in
         if volume is None:
             if fill:
@@ -202,7 +221,13 @@ def _box_depth(house: House) -> Iterator[str]:
         if not supplying:
             continue
         box = house.box(cable.to)
-        awg = min(supplying)  # the largest conductor
+        if None in supplying:
+            yield Unchecked(
+                f"314.24(B): box {box.id} -- size of the conductors supplying its device not "
+                "recorded; the depth they need is not known"
+            )
+            continue
+        awg = min(s for s in supplying if s is not None)  # the largest conductor
         rule = next((k for k, (awgs, _) in SECTION_314_24_B.items() if awg in awgs), None)
         if rule is None:
             yield Unchecked(
@@ -280,6 +305,13 @@ def _multiwire(house: House) -> Iterator[str]:
             # the shared neutral carries up to the larger hot's current, which only
             # the larger breaker limits -- it must be good for that breaker
             largest = max(circuits, key=lambda c: c.circuit_breaker.ampere_rating)
+            if n.size_awg is None:
+                yield Unchecked(
+                    f"240.4(D): cable {cable.id} -- shared neutral {n.handle} size not recorded; "
+                    f"whether it is good for circuit {largest.id}'s "
+                    f"{largest.circuit_breaker.ampere_rating} A breaker is not checked"
+                )
+                continue
             if cable.type == "EMT":
                 factor = raceway.adjustment(raceway.current_carrying(house, cable))
                 amps = raceway.ampacity(n, largest, factor=factor, ambient_c=cable.ambient_c)
@@ -300,7 +332,14 @@ def _raceway_fill(house: House) -> Iterator[str]:
     more of its area than Table 1 allows for their number.
     """
     for cable in raceway.raceways(house):
-        used, allowed = raceway.fill(cable)
+        filled = raceway.fill(cable)
+        if filled is None:
+            names = ", ".join(w.handle for w in raceway.ungauged(cable))
+            yield Unchecked(
+                f"358.22: tube {cable.id} -- size not recorded for {names}; fill not calculated"
+            )
+            continue
+        used, allowed = filled
         if used > allowed + 1e-9:
             wires = [w for w in cable.wires if not w.raceway]
             area = CHAPTER_9_TABLE_4[cable.type][cable.trade_size or ""]["total_area_sq_in"]
@@ -326,6 +365,9 @@ def _raceway_ampacity(house: House) -> Iterator[str]:
         for w in cable.wires:
             bc = raceway.feeder(house, w)
             if bc is None:
+                continue
+            if w.size_awg is None:
+                yield _unsized("240.4(D)", cable, w, bc)
                 continue
             rating = raceway.insulation_rating(w)
             corr = raceway.correction(ambient, rating)
@@ -357,7 +399,14 @@ def _solid_in_raceway(house: House) -> Iterator[str]:
         if cable.type != "EMT":
             continue
         for w in cable.wires:
-            if w.stranding == "solid" and w.size_awg <= SECTION_310_3_C_STRANDED_FROM_AWG:
+            if w.stranding != "solid":
+                continue
+            if w.size_awg is None:
+                yield Unchecked(
+                    f"310.3(C): cable {cable.id} -- {w.handle} is solid, size not recorded; "
+                    "whether it must be stranded is not checked"
+                )
+            elif w.size_awg <= SECTION_310_3_C_STRANDED_FROM_AWG:
                 yield f"310.3(C): cable {cable.id} -- {w.handle} is solid {w.size_awg} AWG in a raceway"
 
 
@@ -367,7 +416,14 @@ def _neutral_colour(house: House) -> Iterator[str]:
     """
     for cable in house.cables():
         for w in cable.wires:
-            if w.played_role == "neutral" and w.size_awg >= 6 and w.color not in ("white", "gray"):
+            if w.played_role != "neutral" or w.color in ("white", "gray"):
+                continue
+            if w.size_awg is None:
+                yield Unchecked(
+                    f"200.6(A): cable {cable.id} -- neutral {w.handle} is {w.color}, size not "
+                    "recorded; whether it must be white or gray is not checked"
+                )
+            elif w.size_awg >= 6:
                 yield (
                     f"200.6(A): cable {cable.id} -- neutral {w.handle} is {w.color}; "
                     f"a {w.size_awg} AWG neutral must be white or gray"
@@ -406,6 +462,9 @@ def _continuous_load(house: House) -> Iterator[str]:
                     f"under 125 % of {cont:g} A continuous + {noncont:g} A = {need:g} A"
                 )
             for cable, w in _circuit_hots(house, bc):
+                if w.size_awg is None:
+                    yield _unsized("210.19(A)(1)", cable, w, bc)
+                    continue
                 if cable.type == "EMT":
                     factor = raceway.adjustment(raceway.current_carrying(house, cable))
                     amps = raceway.ampacity(w, bc, factor=factor, ambient_c=cable.ambient_c)
@@ -471,7 +530,12 @@ def _egc_size(house: House) -> Iterator[str]:
             if w.role != "egc" or w.raceway:
                 continue
             need = next(awg for amps, awg in TABLE_250_122[w.material] if rating <= amps)
-            if w.size_awg > need:
+            if w.size_awg is None:
+                yield Unchecked(
+                    f"Table 250.122: cable {cable.id} -- EGC {w.handle} size not recorded; "
+                    f"a {rating} A circuit needs {need} AWG"
+                )
+            elif w.size_awg > need:
                 yield (
                     f"Table 250.122: cable {cable.id} -- EGC {w.handle} is {w.size_awg} AWG; "
                     f"a {rating} A circuit needs {need} AWG"
@@ -531,6 +595,11 @@ def _voltage_drop(house: House) -> Iterator[str]:
             unrecorded = raceway.unrecorded_loads(bc)
             if unrecorded:
                 missing.append(f"load not recorded for {', '.join(d.id for d in unrecorded)}")
+            unsized = raceway.ungauged_hots(house, bc)
+            if unsized:
+                missing.append(
+                    f"conductor size not recorded for {', '.join(c.id for c in unsized)}"
+                )
             if missing:
                 yield Unchecked(
                     f"210.19(A) IN No. 4: circuit {bc.id} -- voltage drop not checked; "

@@ -131,7 +131,9 @@ def test_six_awg_x3_overfills_half_inch_and_fits_three_quarter() -> None:
         )
         for m in _violations(_ev("1/2"))
     )
-    used, allowed = raceway.fill(_ev("3/4").cable("EV1"))
+    filled = raceway.fill(_ev("3/4").cable("EV1"))
+    assert filled is not None
+    used, allowed = filled
     assert round(used, 2) == 0.29 and allowed == 0.40
     assert not any(m.startswith("358.22") for m in _violations(_ev("3/4")))
 
@@ -298,8 +300,9 @@ def test_three_circuits_in_one_tube_fill_and_derate_together() -> None:
     house = _shared_tube(6)
     run = house.cable("C5-E1")
     assert [bc.id for bc in house.trace.run_circuits(run)] == ["C5", "C12", "EV"]
-    used, _ = raceway.fill(run)
-    assert round(used, 3) == 0.385  # 3 x #6 + 4 x #12 in 3/4" EMT
+    filled = raceway.fill(run)
+    assert filled is not None
+    assert round(filled[0], 3) == 0.385  # 3 x #6 + 4 x #12 in 3/4" EMT
     assert (
         raceway.current_carrying(house, run) == 6
     )  # 4 hots + two 2-wire neutrals; not the 14-50's
@@ -540,7 +543,7 @@ def test_old_tw_wire_is_60_c() -> None:
 
 
 def test_a_wire_through_a_box_counts_once() -> None:
-    def fill(through: bool) -> float:
+    def fill(through: bool) -> float | None:
         wires = [
             _wire("l1", "ungrounded", "black"),
             _wire("l2", "ungrounded", "red"),

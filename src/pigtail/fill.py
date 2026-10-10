@@ -28,7 +28,7 @@ def allowance(awg: int) -> float:
         ) from None
 
 
-def required_cu_in(house: House, box_id: str) -> float:
+def required_cu_in(house: House, box_id: str) -> float | None:
     """Free space Table 314.16(B) requires for box ``box_id``: one allowance per
     insulated circuit conductor entering it (B)(1), two of the largest per
     yoke or strap carrying a switch or receptacle (B)(4), and one of the
@@ -37,21 +37,25 @@ def required_cu_in(house: House, box_id: str) -> float:
     yoke; its fixture stud or hickey (B)(3) is not modelled, nor are clamps
     (B)(2). Conductors that never leave the box (pigtails) are not counted, and
     a wire pulled through unspliced (``Splice.through``) counts once, not once
-    per run (B)(1).
+    per run (B)(1). None when a conductor in it has no recorded size
+    (``ungauged``): its allowance is not known.
     """
 
     here = [c for c in house.cables() if box_id in (c.to, c.upstream)]
     extra = sum(allowance(awg) * n for awg, n in house.box(box_id).extra_conductors.items())
     if not here:
         return extra
-    largest = allowance(
-        min(w.size_awg for c in here for w in c.wires)
-    )  # smallest AWG = largest wire
-    conductors = sum(allowance(w.size_awg) for c in here for w in c.wires if w.role != "egc")
+    if ungauged(house, box_id):
+        return None
+    sizes = [w.size_awg for c in here for w in c.wires if not w.raceway and w.size_awg]
+    largest = allowance(min(sizes))  # smallest AWG = largest wire
+    conductors = sum(
+        allowance(w.size_awg) for c in here for w in c.wires if w.role != "egc" and w.size_awg
+    )
     for sp in (sp for c in here if c.to == box_id for sp in c.splices if sp.through):
         owner, name = sp.join[0].split(".", 1)
         wire = house.cable(owner).wire(name)
-        if wire.role != "egc":  # the in-run and out-run both counted it; it is one wire
+        if wire.role != "egc" and wire.size_awg:  # counted by the in-run and the out-run
             conductors -= allowance(wire.size_awg)
     yokes = sum(
         1
@@ -64,6 +68,12 @@ def required_cu_in(house: House, box_id: str) -> float:
     wire_egc = any(w.role == "egc" and not w.raceway for c in here for w in c.wires)
     egc = largest if wire_egc else 0.0
     return conductors + extra + devices + egc
+
+
+def ungauged(house: House, box_id: str) -> list[str]:
+    """The runs in box ``box_id`` with a conductor whose size is not recorded."""
+    here = [c for c in house.cables() if box_id in (c.to, c.upstream)]
+    return [c.id for c in here if any(w.size_awg is None and not w.raceway for w in c.wires)]
 
 
 def suggest(required: float) -> str | None:
