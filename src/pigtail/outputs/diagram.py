@@ -29,7 +29,15 @@ from collections.abc import Callable, Iterable, Mapping
 
 from pigtail.fill import required_cu_in
 from pigtail.models._base import BuildError
-from pigtail.models._dot import EDGE_COLOUR, ROLE_CELL, bus_ref, esc, role_of, wire_nuts
+from pigtail.models._dot import (
+    EDGE_COLOUR,
+    ROLE_CELL,
+    bus_ref,
+    edge_width,
+    esc,
+    role_of,
+    wire_nuts,
+)
 from pigtail.models.house import House
 
 _BUS_PORT = {"NEUTRAL": "N", "EGC": "EGC"}  # busbar -> its row on the bus node
@@ -45,16 +53,18 @@ def circuit_diagram(house: House, *, only: str | None = None, title: str | None 
     def on(ids: Iterable[str]) -> bool:
         return only is None or only in ids
 
-    # conductor handle -> role / insulation colour / the circuits it is on (an
-    # EGC: those of its run); device id -> its circuit
+    # conductor handle -> role / insulation colour / line width (by its size) /
+    # the circuits it is on (an EGC: those of its run); device id -> its circuit
     roles: dict[str, str] = {}
     colours: dict[str, str] = {}
+    widths: dict[str, float] = {}
     circuits: dict[str, list[str]] = {}
     for c in house.cables():
         run_ids = [bc.id for bc in trace.run_circuits(c)]
         for w in c.wires:
             roles[w.handle] = w.role
             colours[w.handle] = w.color
+            widths[w.handle] = 1.0 if w.raceway else edge_width(w.size_awg)
             circuits[w.handle] = [bc.id for bc in trace.circuits(w)] or run_ids
     for d in house.devices():
         bc = trace.device_circuit(d)
@@ -100,7 +110,7 @@ def circuit_diagram(house: House, *, only: str | None = None, title: str | None 
         for bc in picked:
             lines += bc.clip_edges(panel_id=pb.id)
         lines += _landing_edges(
-            pb.id, [sp.join for sp in pb.splices], roles, colours, circuits, visible
+            pb.id, [sp.join for sp in pb.splices], roles, colours, widths, circuits, visible
         )
 
     for cable in runs:
@@ -140,7 +150,7 @@ def circuit_diagram(house: House, *, only: str | None = None, title: str | None 
         lines += house.box(box_id).diagram_cluster(
             inner, same_rank=same, fill=required_cu_in(house, box_id)
         )
-        lines += _splice_edges(box_id, nuts, roles, colours, circuits, incoming=cable.id)
+        lines += _splice_edges(box_id, nuts, roles, colours, widths, circuits, incoming=cable.id)
         # a box's devices side by side, left to right
         lines += [f'  "{a}" -> "{b}" [style=invis];' for a, b in zip(dev_ids, dev_ids[1:])]
 
@@ -176,12 +186,13 @@ def _landing_edges(
     joins: list[list[str]],
     roles: Mapping[str, str],
     colours: Mapping[str, str],
+    widths: Mapping[str, float],
     circuits: Mapping[str, list[str]],
     visible: Callable[[str], bool],
 ) -> list[str]:
     """The panelboard's landings: each wire from the breaker terminal it lands
     on (east of the breaker, west of the run), or to the busbar it lands on,
-    in its own colour.
+    in its own colour and at the width of its size.
     """
     out: list[str] = []
     for join in joins:
@@ -191,6 +202,7 @@ def _landing_edges(
             run, name = wire.split(".", 1)
             colour = EDGE_COLOUR[colours[wire]]
             style = " style=dashed" if roles[wire] == "egc" else ""
+            style += f" penwidth={widths[wire]:g}"
             cls = f' class="{_class(circuits[wire])}"' if circuits[wire] else ""
             for end in ends:
                 owner, part = end.split(".", 1)
@@ -252,6 +264,7 @@ def _splice_edges(
     nuts: list[list[str]],
     roles: Mapping[str, str],
     colours: Mapping[str, str],
+    widths: Mapping[str, float],
     circuits: Mapping[str, list[str]],
     *,
     incoming: str,
@@ -261,17 +274,19 @@ def _splice_edges(
     from below (``:s``); the box's incoming cable from its east (``:e``); an
     onward cable from its west (``:w``). ``constraint`` off: wiring detail, the
     flow is set by the invisible threading edges. Each edge takes its wire's
-    colour (``colours``: handle -> insulation colour) and circuits; an edge to a
-    device terminal takes the colour of the nut's first cable wire and the
-    device's circuit.
+    colour (``colours``: handle -> insulation colour), width (``widths``: by its
+    size) and circuits; an edge to a device terminal takes the colour and width
+    of the nut's first cable wire and the device's circuit.
     """
     out: list[str] = []
     for i, members in enumerate(nuts):
         role = role_of(members, roles)
         style = "dashed" if role == "egc" else "solid"
         nut_colour = next((colours[m] for m in members if m in colours), "black")
+        nut_width = next((widths[m] for m in members if m in widths), 1.0)
         for member in members:
             colour = EDGE_COLOUR[colours.get(member, nut_colour)]
+            width = widths.get(member, nut_width)
             owner, part = member.split(".", 1)
             if member not in roles:  # a device terminal
                 far = ":s"
@@ -282,6 +297,6 @@ def _splice_edges(
             cls = f' class="{_class(ids)}"' if ids else ""
             out.append(
                 f'  "spl_{box_id}":s{i}:n -> "{owner}":{part}{far} '
-                f'[color="{colour}" style={style} constraint=false{cls}];'
+                f'[color="{colour}" style={style} penwidth={width:g} constraint=false{cls}];'
             )
     return out

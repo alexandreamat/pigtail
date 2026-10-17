@@ -53,7 +53,8 @@ def test_diagram_routes_conductors_by_role(house: House) -> None:
     assert '"C1":neutral:w -> "MP_bus":N:e' in dot
     # and its EGC to the panel EGC bus, dashed
     assert (
-        '"C1":egc:w -> "MP_bus":EGC:e [color="#0a8a0a" style=dashed class="circuit-LTG-1"];' in dot
+        '"C1":egc:w -> "MP_bus":EGC:e [color="#0a8a0a" style=dashed penwidth=1 class="circuit-LTG-1"];'
+        in dot
     )
 
 
@@ -114,7 +115,7 @@ def test_a_run_shared_by_circuits_carries_each_class() -> None:
     mp["splices"].append({"join": ["E1.red", "C9.LOAD"]})
     dot = circuit_diagram(House.from_dict(data))
     assert '"E1" [class="circuit-GAR-12 circuit-C9"];' in dot
-    assert '"C9":LOAD:e -> "E1":red:w [color="#d33333" class="circuit-C9"];' in dot
+    assert '"C9":LOAD:e -> "E1":red:w [color="#d33333" penwidth=1.59 class="circuit-C9"];' in dot
     assert '"E2" [class="circuit-GAR-12"];' in dot  # E2 carries only GAR-12
 
 
@@ -139,3 +140,12 @@ def test_runs_leaving_a_box_straddle_it() -> None:
     assert '"spl_EMB1" -> "fork_spl_EMB1" [style=invis weight=100];' in dot
     assert '{ rank=same; "E2"; "fork_spl_EMB1"; "E3"; }' in dot
     assert '"E2" -> "fork_spl_EMB1" -> "E3" [style=invis];' in dot
+
+
+def test_wires_draw_at_the_width_of_their_size() -> None:
+    from pigtail.models._dot import edge_width
+
+    assert edge_width(14) == 1.0
+    assert edge_width(12) == 1.59
+    assert edge_width(8) == 4.02
+    assert edge_width(None) == 1.0

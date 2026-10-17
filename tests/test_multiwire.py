@@ -146,7 +146,7 @@ def test_a_white_whose_loads_are_not_traced_is_not_shared() -> None:
 def test_diagram_lands_each_wire_from_its_breaker() -> None:
     house = House.from_dict(_house())
     dot = circuit_diagram(house)
-    assert '"C12":LOAD:e -> "E1":hot_c12:w [color="#d33333" class="circuit-C12"];' in dot
+    assert '"C12":LOAD:e -> "E1":hot_c12:w [color="#d33333" penwidth=1 class="circuit-C12"];' in dot
     assert '"E1" [class="circuit-C5 circuit-C12"];' in dot
     only = circuit_diagram(house, only="C12")
     assert '"E1" [' in only and '"E3" [' in only and '"E2" [' not in only

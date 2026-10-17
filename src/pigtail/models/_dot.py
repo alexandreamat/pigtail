@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from pigtail.nec_tables import CHAPTER_9_TABLE_8
+
 # conductor role -> edge colour
 ROLE_COLOUR = {
     "ungrounded": "#111111",
@@ -29,6 +31,19 @@ EDGE_COLOUR: dict[str, str] = {
     "green": ROLE_COLOUR["egc"],
     "bare": ROLE_COLOUR["egc"],
 }
+
+
+def edge_width(size_awg: int | None) -> float:
+    """A wire's line width in the drawing: its cross-section (Chapter 9
+    Table 8) relative to 14 AWG's, so 12 AWG draws 1.6x as thick and 8 AWG 4x.
+    A wire of unknown size, and the raceway, draw at 1.
+    """
+    if size_awg is None:
+        return 1.0
+    base = CHAPTER_9_TABLE_8[14]["area_cmil"]
+    return round(CHAPTER_9_TABLE_8[size_awg]["area_cmil"] / base, 2)
+
+
 # conductor role -> (cell background, text colour, extra <td> attributes) for HTML nodes
 ROLE_CELL = {
     "ungrounded": ("#111111", "#ffffff", ""),

@@ -131,7 +131,7 @@ def test_diagram_draws_real_colours_and_the_tape_band(house: House) -> None:
     assert '<td port="leg_b" bgcolor="#d33333">' in dot  # red, not black
     assert '<td bgcolor="blue" width="8"> </td>' in dot  # the blue identification band
     assert (
-        '"C":LOAD:e -> "E1":hot:w [color="#d33333" class="circuit-C"];' in dot
+        '"C":LOAD:e -> "E1":hot:w [color="#d33333" penwidth=1 class="circuit-C"];' in dot
     )  # the red hot is red from the breaker
     assert '"E1":egc:w -> "MP_bus":EGC:e' in dot
     # a named conductor is a cable member, not a device terminal (never entered from below):
